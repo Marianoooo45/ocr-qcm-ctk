@@ -1,0 +1,10 @@
+pillow
+mss
+pytesseract
+python-dotenv
+requests
+keyboard
+anthropic
+google-generativeai
+openai>=1.30.0
+customtkinter
