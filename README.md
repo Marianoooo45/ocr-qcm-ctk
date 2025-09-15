@@ -1,4 +1,4 @@
-# OCR QCM CTk Neon  
+# OCR QCM CTk
 
 OCR QCM CTk Neon is a Python desktop application that automatically captures regions of your screen, extracts text using Tesseract OCR, and solves multiple-choice questions (QCM) via AI models (OpenAI, Anthropic, Gemini).  
 It is designed for speed, flexibility, and stealth, with a matte black CustomTkinter interface.  
