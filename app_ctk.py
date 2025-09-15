@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 import os, io, time, threading, queue, json, hashlib
 from datetime import datetime
@@ -7,7 +6,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk, ImageDraw
 import requests
 
-# ====== CONFIG IMPORTS (your existing files) ======
+#CONFIG IMPORTS
 from config import (
     CAP_LEFT, CAP_TOP, CAP_WIDTH, CAP_HEIGHT,
     OCR_LANG, OCR_OEM, OCR_PSM, TESSERACT_CMD,
@@ -17,15 +16,14 @@ from config import (
     PROMPTS as CONFIG_PROMPTS, PROVIDERS as CONFIG_PROVIDERS
 )
 from llm_client import LLMClient
-    # must provide .complete(text, prompt, temperature)
 from ocr import set_tesseract_cmd, grab_image, ocr_image
 
 try:
-    import keyboard as kb  # global hotkeys for hide/show
+    import keyboard as kb  
 except Exception:
     kb = None
 
-# ====== FULL MATTE BLACK PALETTE ======
+#FULL MATTE BLACK PALETTE
 K_BG        = "#090909"   # global background
 K_BG_ALT    = "#0B0B0C"
 K_PANEL     = "#0D0E11"   # panels
@@ -36,7 +34,7 @@ K_MUTED     = "#9AA2C0"   # secondary text
 K_ACCENT    = "#5AB0FF"   # neon cold blue
 K_ACCENT_2  = "#7A6CFF"   # neon violet
 
-ctk.set_appearance_mode("dark")  # ensure dark
+ctk.set_appearance_mode("dark")
 
 PROMPTS_FILE  = "prompts.json"
 
@@ -46,7 +44,7 @@ def sha1_bytes(b: bytes) -> str:
 def ensure_dir(p: str):
     os.makedirs(p, exist_ok=True)
 
-# --- Small capture icon for the snipping button ---
+#Small capture icon for the snipping button
 def make_capture_icon(size=20, fg=K_FG):
     s = size
     img = Image.new("RGBA", (s, s), (0,0,0,0))
@@ -59,7 +57,7 @@ def make_capture_icon(size=20, fg=K_FG):
     d.ellipse([int(s*0.15), int(s*0.15), int(s*0.25), int(s*0.25)], fill=fg)
     return ctk.CTkImage(light_image=img, dark_image=img, size=(s, s))
 
-# ====== PROMPTS ======
+#PROMPTS
 def load_prompts() -> dict[str, str]:
     data = {}
     if isinstance(CONFIG_PROMPTS, dict):
@@ -94,7 +92,7 @@ def merged_providers():
         prov_map[k] = sorted(set(prov_map[k]))
     return [(k, prov_map[k]) for k in sorted(prov_map.keys())]
 
-# ====== Fullscreen snipping overlay ======
+#Fullscreen snipping overlay
 class RegionOverlay(ctk.CTkToplevel):
     """Fullscreen overlay to draw a region with the mouse (Snipping Tool style)."""
     def __init__(self, master, on_done):
@@ -162,18 +160,18 @@ class RegionOverlay(ctk.CTkToplevel):
     def _cancel(self):
         self.destroy()
 
-# ====== APP ======
+#APP
 class OCRQCMApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        # --- Window ---
+        # Window
         self.title("OCR QCM – CTk Neon")
         self.geometry("1288x770")
         self.minsize(1120, 660)
         self.configure(fg_color=K_BG)
         self.wm_attributes("-alpha", 0.995)
 
-        # --- State ---
+        # State 
         self.capture_zone = {"left": CAP_LEFT, "top": CAP_TOP, "width": CAP_WIDTH, "height": CAP_HEIGHT}
         self.cooldown_s = 1.5
         self.last_hash = None
@@ -209,7 +207,7 @@ class OCRQCMApp(ctk.CTk):
         self.var_psm      = ctk.StringVar(value=str(OCR_PSM))
         self.var_cooldown = ctk.DoubleVar(value=1.5)
 
-        # Outputs (in Settings → Outputs)
+        # Outputs
         self.do_copy_clipboard = ctk.BooleanVar(value=True)
         self.do_auto_save      = ctk.BooleanVar(value=True)
         self.do_send_discord   = ctk.BooleanVar(value=bool(self.webhook_url))
@@ -222,7 +220,6 @@ class OCRQCMApp(ctk.CTk):
         if TESSERACT_CMD:
             set_tesseract_cmd(TESSERACT_CMD)
 
-        # ---- Create icons BEFORE building UI (fixes your crash) ----
         self.icons = {"capture": make_capture_icon(18, fg=K_FG)}
 
         # Build UI
@@ -230,7 +227,7 @@ class OCRQCMApp(ctk.CTk):
         self._bind_hotkeys()
         self.after(16, self._drain_ui_queue)
 
-    # ====== UI helpers ======
+    #UI helpers
     def _frame(self, parent, pad=8):
         f = ctk.CTkFrame(parent, fg_color=K_PANEL, border_color=K_BORDER, border_width=1, corner_radius=10)
         if pad: f.pack_propagate(False)
@@ -289,8 +286,6 @@ class OCRQCMApp(ctk.CTk):
     def _slider(self, parent, var, width=160):
         return ctk.CTkSlider(parent, from_=0.0, to=2.0, number_of_steps=20,
                              width=width, variable=var, fg_color=K_BG_ALT, progress_color=K_ACCENT)
-
-    # ====== Build UI ======
     def _build_ui(self):
         # Tabs
         self.tabview = ctk.CTkTabview(self, fg_color=K_BG, segmented_button_fg_color=K_BG_ALT,
@@ -460,7 +455,7 @@ class OCRQCMApp(ctk.CTk):
         self._entry(tg, self.telegram_chat, width=220).pack(side="left", padx=(0,8))
         self._button(tg, "Test Telegram", self._test_telegram, accent=False).pack(side="left", padx=6)
 
-    # ====== Hotkeys & Stealth ======
+    #Hotkeys & Stealth
     def _bind_hotkeys(self):
         self.bind("<F2>", lambda e: self.capture_once())
         if kb:
@@ -484,7 +479,7 @@ class OCRQCMApp(ctk.CTk):
         except Exception:
             pass
 
-    # ====== Region overlay ======
+    #Region overlay
     def _open_region_overlay(self, auto_capture=True):
         def done(l, t, w, h):
             self.var_l.set(l); self.var_t.set(t); self.var_w.set(w); self.var_h.set(h)
@@ -499,7 +494,7 @@ class OCRQCMApp(ctk.CTk):
             RegionOverlay(self, on_done=lambda L,T,W,H: (self.show_window(), done(L,T,W,H)))
         self.after(120, after_hide)
 
-    # ====== Prompt editor ======
+    #Prompt editor
     def _load_prompt_to_editor(self):
         key = self.prompt_key_var.get()
         text = self.prompts.get(key, "")
@@ -542,7 +537,7 @@ class OCRQCMApp(ctk.CTk):
         elif self.prompt_key_var.get() not in keys:
             self.prompt_key_var.set(keys[0])
 
-    # ====== Logic ======
+    #Logic
     def _refresh_models_for_provider(self, *_):
         prov = self.provider_var.get()
         for p, models in self.providers:
@@ -655,7 +650,7 @@ class OCRQCMApp(ctk.CTk):
             try: self._send_telegram_message(ans)
             except Exception as e: self.txt_log.insert("1.0", f"Telegram failed: {e}\n")
 
-    # ====== UI Queue drain ======
+    #UI Queue drain
     def _drain_ui_queue(self):
         try:
             while True:
@@ -691,7 +686,7 @@ class OCRQCMApp(ctk.CTk):
         p = filedialog.askopenfilename(title="Select tesseract.exe")
         if p: self.var_tesseract.set(p)
 
-    # ====== Discord / Telegram tests ======
+    #iscord / Telegram tests
     def _test_discord(self):
         try:
             r = requests.post(self.var_webhook.get().strip(), data={"content": "Test from OCR QCM – CTk Neon ✅"}, timeout=10)
@@ -717,7 +712,7 @@ class OCRQCMApp(ctk.CTk):
         if r.status_code >= 300:
             raise RuntimeError(f"Telegram HTTP {r.status_code}: {r.text[:200]}")
 
-# ====== main ======
+#main
 if __name__ == "__main__":
     app = OCRQCMApp()
     app.mainloop()
