@@ -9,7 +9,7 @@ It is designed for speed, flexibility, and stealth, with a matte black CustomTki
 ---  
 
 ## Features  
-- **Matte black CustomTkinter UI** with neon accents  
+- **Matte black CustomTkinter UI** 
 - **Two capture modes**:  
   - Manual region definition (L, T, W, H)  
   - Interactive snipping overlay (draw the capture zone with mouse)  
